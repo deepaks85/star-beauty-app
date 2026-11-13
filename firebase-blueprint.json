@@ -1,0 +1,238 @@
+{
+  "entities": {
+    "Service": {
+      "title": "Service",
+      "description": "Salon treatment or makeup service offered on the Start Beauty Make-up Studio menu.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "category": { "type": "string", "enum": ["Makeup", "Hair Artistry", "Facial & Skin", "Nails & Lashes"] },
+        "description": { "type": "string", "minLength": 5, "maxLength": 400 },
+        "durationMins": { "type": "number" },
+        "price": { "type": "number" },
+        "featured": { "type": "boolean" },
+        "active": { "type": "boolean" },
+        "imageKey": { "type": "string", "enum": ["bridal_makeup", "hair_spa", "skincare_facial", "nail_lash"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "category", "description", "durationMins", "price", "featured", "active", "imageKey", "createdAt", "updatedAt"]
+    },
+    "StaffMember": {
+      "title": "StaffMember",
+      "description": "Salon stylist or makeup artist profile and weekly shift schedule (non-PII public display).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "role": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "specialty": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "shiftDays": { "type": "array" },
+        "shiftStart": { "type": "string", "minLength": 4, "maxLength": 10, "pattern": "^[0-9]{2}:[0-9]{2}$" },
+        "shiftEnd": { "type": "string", "minLength": 4, "maxLength": 10, "pattern": "^[0-9]{2}:[0-9]{2}$" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "role", "specialty", "shiftDays", "shiftStart", "shiftEnd", "active", "createdAt", "updatedAt"]
+    },
+    "CustomerProfile": {
+      "title": "CustomerProfile",
+      "description": "Private customer record containing contact PII and beauty preference history.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "email": { "type": "string", "format": "email", "minLength": 3, "maxLength": 120 },
+        "phone": { "type": "string", "minLength": 5, "maxLength": 30 },
+        "preferredStylist": { "type": "string", "maxLength": 80 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "uid", "name", "email", "phone", "createdAt", "updatedAt"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Customer salon booking with advance or full payment tracking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "customerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "customerName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "customerEmail": { "type": "string", "format": "email", "minLength": 3, "maxLength": 120 },
+        "customerPhone": { "type": "string", "minLength": 5, "maxLength": 30 },
+        "serviceId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "serviceName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "serviceCategory": { "type": "string", "enum": ["Makeup", "Hair Artistry", "Facial & Skin", "Nails & Lashes"] },
+        "staffId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "staffName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "appointmentDate": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "appointmentTime": { "type": "string", "minLength": 5, "maxLength": 10, "pattern": "^[0-9]{2}:[0-9]{2}$" },
+        "durationMins": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "paymentPlan": { "type": "string", "enum": ["advance", "full"] },
+        "amountPaid": { "type": "number" },
+        "balanceDue": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["Card", "UPI", "NetBanking", "Cash"] },
+        "paymentStatus": { "type": "string", "enum": ["Advance Paid", "Paid in Full", "Pending", "Refunded"] },
+        "transactionRef": { "type": "string", "minLength": 4, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "status": { "type": "string", "enum": ["Confirmed", "In Progress", "Completed", "Cancelled"] },
+        "notes": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "customerUid",
+        "customerName",
+        "customerEmail",
+        "customerPhone",
+        "serviceId",
+        "serviceName",
+        "serviceCategory",
+        "staffId",
+        "staffName",
+        "appointmentDate",
+        "appointmentTime",
+        "durationMins",
+        "totalAmount",
+        "paymentPlan",
+        "amountPaid",
+        "balanceDue",
+        "paymentMethod",
+        "paymentStatus",
+        "transactionRef",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily staff attendance and check-in/out log managed by salon administrators.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "staffId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "staffName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "date": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "status": { "type": "string", "enum": ["Present", "Half Day", "Absent", "On Leave"] },
+        "checkIn": { "type": "string", "maxLength": 10 },
+        "checkOut": { "type": "string", "maxLength": 10 },
+        "notes": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "staffId", "staffName", "date", "status", "createdAt", "updatedAt"]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Authorized salon administrator record keyed by Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "minLength": 3, "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "ClientReview": {
+      "title": "ClientReview",
+      "description": "Public client testimonial with star rating, service name, and review outcome.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "reviewerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "clientName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "clientContext": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "serviceId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "serviceName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "rating": { "type": "number" },
+        "comment": { "type": "string", "minLength": 10, "maxLength": 400 },
+        "visitDate": { "type": "string", "minLength": 7, "maxLength": 20 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "reviewerUid",
+        "clientName",
+        "clientContext",
+        "serviceId",
+        "serviceName",
+        "rating",
+        "comment",
+        "visitDate",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "EmailLog": {
+      "title": "EmailLog",
+      "description": "Audit log of automated booking confirmation and appointment reminder emails dispatched by Firebase Functions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "appointmentId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "customerName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "recipientEmail": { "type": "string", "format": "email", "minLength": 3, "maxLength": 120 },
+        "emailType": { "type": "string", "enum": ["confirmation", "reminder"] },
+        "subject": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "status": { "type": "string", "enum": ["Queued", "Sent", "Failed"] },
+        "scheduledDate": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "errorMessage": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "appointmentId",
+        "customerName",
+        "recipientEmail",
+        "emailType",
+        "subject",
+        "status",
+        "scheduledDate",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/services/{serviceId}": {
+      "schema": { "$ref": "#/entities/Service" },
+      "description": "Publicly browsable salon service menu catalog; writable only by verified admins."
+    },
+    "/staff/{staffId}": {
+      "schema": { "$ref": "#/entities/StaffMember" },
+      "description": "Salon stylists and makeup artists with weekly shift schedules; writable only by verified admins."
+    },
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/CustomerProfile" },
+      "description": "Customer PII and beauty profile history; readable/writable only by the owning customer or verified admins."
+    },
+    "/appointments/{appointmentId}": {
+      "schema": { "$ref": "#/entities/Appointment" },
+      "description": "Booked salon appointments and online payment records; customers access only their own appointments while admins access all."
+    },
+    "/attendance/{attendanceId}": {
+      "schema": { "$ref": "#/entities/AttendanceRecord" },
+      "description": "Daily staff attendance records; strictly accessible only by verified admins."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRole" },
+      "description": "Verified salon administrator UID registry."
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/ClientReview" },
+      "description": "Public client testimonials with ratings and service names."
+    },
+    "/emailLogs/{logId}": {
+      "schema": { "$ref": "#/entities/EmailLog" },
+      "description": "Automated confirmation and reminder email dispatch logs managed by Firebase Functions and viewable by admins."
+    }
+  }
+}

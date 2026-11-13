@@ -1,0 +1,443 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Global Hardened Helpers
+    // =========================================================================
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isVerifiedCustomer() {
+      return isSignedIn() && (
+        request.auth.token.email_verified == true
+        || (
+          request.auth.token.phone_number is string
+          && request.auth.token.phone_number.matches('^\\+91[0-9]{10}$')
+        )
+      );
+    }
+
+    // Zero-lookup email check safe for allow list queries (no get/exists cost)
+    function isAdminEmail() {
+      return isVerifiedUser() && request.auth.token.email == 'deepaks85@gmail.com';
+    }
+
+    // Full admin check for single-document reads and writes
+    function isAdmin() {
+      return isAdminEmail() || (
+        isVerifiedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isOwner(uid) {
+      return isVerifiedCustomer() && request.auth.uid == uid;
+    }
+
+    // =========================================================================
+    // Entity Validation Blueprints
+    // =========================================================================
+    function isValidService(data) {
+      return data.keys().hasAll([
+          'id', 'name', 'category', 'description', 'durationMins',
+          'price', 'featured', 'active', 'imageKey', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'name', 'category', 'description', 'durationMins',
+          'price', 'featured', 'active', 'imageKey', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 100
+        && data.category in ['Makeup', 'Hair Artistry', 'Facial & Skin', 'Nails & Lashes']
+        && data.description is string && data.description.size() >= 5 && data.description.size() <= 400
+        && (data.durationMins is int || data.durationMins is float)
+        && data.durationMins >= 15 && data.durationMins <= 480
+        && (data.price is int || data.price is float)
+        && data.price > 0 && data.price <= 500000
+        && data.featured is bool
+        && data.active is bool
+        && data.imageKey in ['bridal_makeup', 'hair_spa', 'skincare_facial', 'nail_lash']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidStaffMember(data) {
+      return data.keys().hasAll([
+          'id', 'name', 'role', 'specialty', 'shiftDays',
+          'shiftStart', 'shiftEnd', 'active', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'name', 'role', 'specialty', 'shiftDays',
+          'shiftStart', 'shiftEnd', 'active', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 80
+        && data.role is string && data.role.size() >= 2 && data.role.size() <= 80
+        && data.specialty is string && data.specialty.size() >= 2 && data.specialty.size() <= 140
+        && data.shiftDays is list && data.shiftDays.size() <= 7
+        && (data.shiftDays.size() == 0 || (data.shiftDays[0] is string && data.shiftDays.hasOnly(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])))
+        && data.shiftStart is string && data.shiftStart.size() >= 4 && data.shiftStart.size() <= 10 && data.shiftStart.matches('^[0-9]{2}:[0-9]{2}$')
+        && data.shiftEnd is string && data.shiftEnd.size() >= 4 && data.shiftEnd.size() <= 10 && data.shiftEnd.matches('^[0-9]{2}:[0-9]{2}$')
+        && data.active is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCustomerProfile(data) {
+      return data.keys().hasAll(['id', 'uid', 'name', 'email', 'phone', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'uid', 'name', 'email', 'phone', 'preferredStylist', 'notes', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.uid)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 80
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 120
+        && data.phone is string && data.phone.size() >= 5 && data.phone.size() <= 30
+        && (!data.keys().hasAny(['preferredStylist']) || (data.preferredStylist is string && data.preferredStylist.size() <= 80))
+        && (!data.keys().hasAny(['notes']) || (data.notes is string && data.notes.size() <= 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAppointment(data) {
+      return data.keys().hasAll([
+          'id', 'customerUid', 'customerName', 'customerEmail', 'customerPhone',
+          'serviceId', 'serviceName', 'serviceCategory', 'staffId', 'staffName',
+          'appointmentDate', 'appointmentTime', 'durationMins', 'totalAmount',
+          'paymentPlan', 'amountPaid', 'balanceDue', 'paymentMethod',
+          'paymentStatus', 'transactionRef', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'customerUid', 'customerName', 'customerEmail', 'customerPhone',
+          'serviceId', 'serviceName', 'serviceCategory', 'staffId', 'staffName',
+          'appointmentDate', 'appointmentTime', 'durationMins', 'totalAmount',
+          'paymentPlan', 'amountPaid', 'balanceDue', 'paymentMethod',
+          'paymentStatus', 'transactionRef', 'status', 'notes', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.customerUid)
+        && data.customerName is string && data.customerName.size() >= 2 && data.customerName.size() <= 80
+        && data.customerEmail is string && data.customerEmail.size() >= 3 && data.customerEmail.size() <= 120
+        && data.customerPhone is string && data.customerPhone.size() >= 5 && data.customerPhone.size() <= 30
+        && isValidId(data.serviceId)
+        && data.serviceName is string && data.serviceName.size() >= 2 && data.serviceName.size() <= 100
+        && data.serviceCategory in ['Makeup', 'Hair Artistry', 'Facial & Skin', 'Nails & Lashes']
+        && isValidId(data.staffId)
+        && data.staffName is string && data.staffName.size() >= 2 && data.staffName.size() <= 80
+        && data.appointmentDate is string && data.appointmentDate.size() == 10 && data.appointmentDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.appointmentTime is string && data.appointmentTime.size() == 5 && data.appointmentTime.matches('^[0-9]{2}:[0-9]{2}$')
+        && (data.durationMins is int || data.durationMins is float) && data.durationMins >= 15 && data.durationMins <= 480
+        && (data.totalAmount is int || data.totalAmount is float) && data.totalAmount > 0 && data.totalAmount <= 500000
+        && data.paymentPlan in ['advance', 'full']
+        && (data.amountPaid is int || data.amountPaid is float) && data.amountPaid >= 0 && data.amountPaid <= data.totalAmount
+        && (data.balanceDue is int || data.balanceDue is float) && data.balanceDue >= 0 && data.balanceDue <= data.totalAmount
+        && data.paymentMethod in ['Card', 'UPI', 'NetBanking', 'Cash']
+        && data.paymentStatus in ['Advance Paid', 'Paid in Full', 'Pending', 'Refunded']
+        && data.transactionRef is string && data.transactionRef.size() >= 4 && data.transactionRef.size() <= 64 && data.transactionRef.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.status in ['Confirmed', 'In Progress', 'Completed', 'Cancelled']
+        && (!data.keys().hasAny(['notes']) || (data.notes is string && data.notes.size() <= 300))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAttendanceRecord(data) {
+      return data.keys().hasAll(['id', 'staffId', 'staffName', 'date', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'staffId', 'staffName', 'date', 'status', 'checkIn', 'checkOut', 'notes', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.staffId)
+        && data.staffName is string && data.staffName.size() >= 2 && data.staffName.size() <= 80
+        && data.date is string && data.date.size() == 10 && data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.status in ['Present', 'Half Day', 'Absent', 'On Leave']
+        && (!data.keys().hasAny(['checkIn']) || (data.checkIn is string && data.checkIn.size() <= 10))
+        && (!data.keys().hasAny(['checkOut']) || (data.checkOut is string && data.checkOut.size() <= 10))
+        && (!data.keys().hasAny(['notes']) || (data.notes is string && data.notes.size() <= 200))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRole(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'createdAt'])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 120
+        && data.createdAt is timestamp;
+    }
+
+    function isValidClientReview(data) {
+      return data.keys().hasAll([
+          'id', 'reviewerUid', 'clientName', 'clientContext', 'serviceId',
+          'serviceName', 'rating', 'comment', 'visitDate', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'reviewerUid', 'clientName', 'clientContext', 'serviceId',
+          'serviceName', 'rating', 'comment', 'visitDate', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.reviewerUid)
+        && data.clientName is string && data.clientName.size() >= 2 && data.clientName.size() <= 80
+        && data.clientContext is string && data.clientContext.size() >= 2 && data.clientContext.size() <= 80
+        && isValidId(data.serviceId)
+        && data.serviceName is string && data.serviceName.size() >= 2 && data.serviceName.size() <= 100
+        && (data.rating is int || data.rating is float) && data.rating >= 1 && data.rating <= 5
+        && data.comment is string && data.comment.size() >= 10 && data.comment.size() <= 400
+        && data.visitDate is string && data.visitDate.size() >= 7 && data.visitDate.size() <= 20
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidEmailLog(data) {
+      return data.keys().hasAll([
+          'id', 'appointmentId', 'customerName', 'recipientEmail',
+          'emailType', 'subject', 'status', 'scheduledDate', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'appointmentId', 'customerName', 'recipientEmail',
+          'emailType', 'subject', 'status', 'scheduledDate', 'errorMessage', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.appointmentId)
+        && data.customerName is string && data.customerName.size() >= 2 && data.customerName.size() <= 80
+        && data.recipientEmail is string && data.recipientEmail.size() >= 3 && data.recipientEmail.size() <= 120
+        && data.emailType in ['confirmation', 'reminder']
+        && data.subject is string && data.subject.size() >= 3 && data.subject.size() <= 160
+        && data.status in ['Queued', 'Sent', 'Failed']
+        && data.scheduledDate is string && data.scheduledDate.size() == 10 && data.scheduledDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && (!data.keys().hasAny(['errorMessage']) || (data.errorMessage is string && data.errorMessage.size() <= 300))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // =========================================================================
+    // Collection Match Blocks
+    // =========================================================================
+
+    // 1. Public Service Menu Catalog
+    match /services/{serviceId} {
+      allow get: if isValidId(serviceId);
+      allow list: if true;
+      allow create: if isVerifiedUser()
+        && isValidId(serviceId)
+        && isValidService(incoming())
+        && incoming().id == serviceId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow update: if isVerifiedUser()
+        && isValidId(serviceId)
+        && isValidService(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow delete: if isVerifiedUser() && isValidId(serviceId) && isAdmin();
+    }
+
+    // 2. Public Staff & Shift Schedule Roster (No PII)
+    match /staff/{staffId} {
+      allow get: if isValidId(staffId);
+      allow list: if true;
+      allow create: if isVerifiedUser()
+        && isValidId(staffId)
+        && isValidStaffMember(incoming())
+        && incoming().id == staffId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow update: if isVerifiedUser()
+        && isValidId(staffId)
+        && isValidStaffMember(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow delete: if isVerifiedUser() && isValidId(staffId) && isAdmin();
+    }
+
+    // 3. Private Customer Profiles (Strict PII Isolation)
+    match /customers/{customerId} {
+      allow get: if isValidId(customerId) && (isOwner(customerId) || isAdmin());
+      allow list: if isAdminEmail() || (isVerifiedCustomer() && resource.data.uid == request.auth.uid);
+      allow create: if isVerifiedCustomer()
+        && isValidId(customerId)
+        && isValidCustomerProfile(incoming())
+        && incoming().id == customerId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && ((isOwner(customerId) && incoming().uid == request.auth.uid) || isAdmin());
+      allow update: if isVerifiedCustomer()
+        && isValidId(customerId)
+        && isValidCustomerProfile(incoming())
+        && incoming().id == existing().id
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            isOwner(customerId)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'preferredStylist', 'notes', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(customerId) && isAdmin();
+    }
+
+    // 4. Appointments & Payments
+    match /appointments/{appointmentId} {
+      allow get: if isValidId(appointmentId) && (
+        (isVerifiedCustomer() && existing().customerUid == request.auth.uid) || isAdmin()
+      );
+      allow list: if isAdminEmail() || (
+        isVerifiedCustomer() && resource.data.customerUid == request.auth.uid
+      );
+      allow create: if isVerifiedCustomer()
+        && isValidId(appointmentId)
+        && isValidAppointment(incoming())
+        && incoming().id == appointmentId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (
+            incoming().customerUid == request.auth.uid
+            && incoming().status == 'Confirmed'
+            && incoming().amountPaid > 0
+            && (incoming().totalAmount - incoming().amountPaid - incoming().balanceDue) >= -0.01
+            && (incoming().totalAmount - incoming().amountPaid - incoming().balanceDue) <= 0.01
+            && (
+              (incoming().paymentPlan == 'full' && incoming().paymentStatus == 'Paid in Full' && incoming().balanceDue == 0)
+              || (incoming().paymentPlan == 'advance' && incoming().paymentStatus == 'Advance Paid' && incoming().balanceDue > 0 && incoming().amountPaid >= incoming().totalAmount * 0.29)
+            )
+            && get(/databases/$(database)/documents/services/$(incoming().serviceId)).data.active == true
+            && get(/databases/$(database)/documents/services/$(incoming().serviceId)).data.price == incoming().totalAmount
+            && get(/databases/$(database)/documents/staff/$(incoming().staffId)).data.active == true
+          )
+          || isAdmin()
+        );
+      allow update: if isVerifiedCustomer()
+        && isValidId(appointmentId)
+        && isValidAppointment(incoming())
+        && incoming().id == existing().id
+        && incoming().customerUid == existing().customerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          || (
+            existing().customerUid == request.auth.uid
+            && existing().status in ['Confirmed', 'In Progress']
+            && incoming().status == 'Cancelled'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(appointmentId) && isAdmin();
+    }
+
+    // 5. Staff Daily Attendance (Strictly Admin-only)
+    match /attendance/{attendanceId} {
+      allow get: if isValidId(attendanceId) && isAdmin();
+      allow list: if isAdminEmail();
+      allow create: if isVerifiedUser()
+        && isValidId(attendanceId)
+        && isValidAttendanceRecord(incoming())
+        && incoming().id == attendanceId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/staff/$(incoming().staffId))
+        && isAdmin();
+      allow update: if isVerifiedUser()
+        && isValidId(attendanceId)
+        && isValidAttendanceRecord(incoming())
+        && incoming().id == existing().id
+        && incoming().staffId == existing().staffId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow delete: if isVerifiedUser() && isValidId(attendanceId) && isAdmin();
+    }
+
+    // 6. Admin Role Registry
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list: if isAdminEmail();
+      allow create: if isVerifiedUser()
+        && isValidId(adminId)
+        && isAdminEmail()
+        && isValidAdminRole(incoming())
+        && incoming().uid == adminId
+        && incoming().createdAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(adminId)
+        && isAdminEmail()
+        && isValidAdminRole(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt;
+      allow delete: if isVerifiedUser() && isValidId(adminId) && isAdminEmail();
+    }
+
+    // 7. Public Client Testimonials & Reviews (No PII)
+    match /reviews/{reviewId} {
+      allow get: if isValidId(reviewId);
+      allow list: if true;
+      allow create: if isVerifiedCustomer()
+        && isValidId(reviewId)
+        && isValidClientReview(incoming())
+        && incoming().id == reviewId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/services/$(incoming().serviceId))
+        && (incoming().reviewerUid == request.auth.uid || isAdmin());
+      allow update: if isVerifiedCustomer()
+        && isValidId(reviewId)
+        && isValidClientReview(incoming())
+        && incoming().id == existing().id
+        && incoming().reviewerUid == existing().reviewerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().reviewerUid == request.auth.uid || isAdmin());
+      allow delete: if isVerifiedCustomer() && isValidId(reviewId) && (
+        existing().reviewerUid == request.auth.uid || isAdmin()
+      );
+    }
+
+    // 8. Automated Email Dispatch Logs (Admin-only client access; written by Firebase Functions)
+    match /emailLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isAdminEmail();
+      allow create: if isVerifiedUser()
+        && isValidId(logId)
+        && isValidEmailLog(incoming())
+        && incoming().id == logId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/appointments/$(incoming().appointmentId))
+        && isAdmin();
+      allow update: if isVerifiedUser()
+        && isValidId(logId)
+        && isValidEmailLog(incoming())
+        && incoming().id == existing().id
+        && incoming().appointmentId == existing().appointmentId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow delete: if isVerifiedUser() && isValidId(logId) && isAdmin();
+    }
+  }
+}

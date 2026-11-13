@@ -1,0 +1,6 @@
+{
+  "name": "Start Beauty Make-up Studio",
+  "description": "Online appointment booking with advance and full payment, service menu, customer history tracking, staff schedules, attendance, and revenue reports for Start Beauty Make-up Studio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,31 @@
+{
+  "packageId": "in.starbeautystudio.app",
+  "host": "ais-pre-vzs2oruqomdwc7pzip3xbc-865254209443.asia-northeast1.run.app",
+  "name": "Star Beauty Make-Up Studio",
+  "launcherName": "Star Beauty",
+  "display": "standalone",
+  "themeColor": "#8E3B46",
+  "themeColorDark": "#6E2C35",
+  "navigationColor": "#FAF7F4",
+  "navigationColorDark": "#1C1917",
+  "navigationDividerColor": "#E5DDD5",
+  "navigationDividerColorDark": "#292524",
+  "backgroundColor": "#FAF7F4",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://ais-pre-vzs2oruqomdwc7pzip3xbc-865254209443.asia-northeast1.run.app/pwa-512x512.png",
+  "maskableIconUrl": "https://ais-pre-vzs2oruqomdwc7pzip3xbc-865254209443.asia-northeast1.run.app/pwa-maskable-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "star-beauty-key"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "fallbackType": "customtabs",
+  "features": {},
+  "orientation": "portrait-primary",
+  "fingerprints": []
+}
